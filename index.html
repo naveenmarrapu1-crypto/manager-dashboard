@@ -111,6 +111,22 @@
 
         /* Monthly Trend full width */
         .chart-trend { grid-column: 1 / 2; }
+
+        /* Add Task Button */
+        .btn-add { background: #48bb78; color: #fff; padding: 7px 16px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; font-weight: 500; }
+        .btn-add:hover { background: #38a169; }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: #fff; border-radius: 12px; padding: 24px; width: 500px; max-width: 90%; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
+        .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #2d3748; }
+        .modal .form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+        .modal .form-group label { font-size: 12px; font-weight: 600; color: #4a5568; }
+        .modal .form-group input, .modal .form-group select { padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 13px; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+        .btn-cancel { background: #e2e8f0; color: #4a5568; padding: 8px 18px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+        .btn-save { background: #4a6cf7; color: #fff; padding: 8px 18px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -166,7 +182,10 @@
         <!-- ALL TASKS TAB -->
         <div class="tab-content" id="alltasks">
             <div class="table-card">
-                <div class="search-bar"><input type="text" placeholder="🔍 Search tasks..." id="taskSearch"></div>
+                <div class="search-bar" style="display:flex;justify-content:space-between;align-items:center">
+                    <input type="text" placeholder="🔍 Search tasks..." id="taskSearch">
+                    <button class="btn-add" onclick="openAddTask()">+ Add Task</button>
+                </div>
                 <table>
                     <thead>
                         <tr><th>Task</th><th>Responsible</th><th>Status</th><th>Sprint</th><th>Assigned</th><th>Due</th><th>Action</th></tr>
@@ -206,6 +225,49 @@
                     <div class="risk-card"><div class="value">0</div><div class="label">📅 Due This Week</div></div>
                     <div class="risk-card"><div class="value">6</div><div class="label">🚫 Blocked</div></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div class="modal-overlay" id="addTaskModal">
+        <div class="modal">
+            <h2>Add New Task</h2>
+            <div class="form-group">
+                <label>Task Name</label>
+                <input type="text" id="newTaskName" placeholder="Enter task name">
+            </div>
+            <div class="form-group">
+                <label>Responsible</label>
+                <select id="newTaskResponsible">
+                    <option value="">Select team member</option>
+                    <option>Narayana</option><option>Naveen</option><option>Prateek</option>
+                    <option>Meghana</option><option>Vignesh</option><option>Venkat</option><option>Sahil</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select id="newTaskStatus">
+                    <option>In Progress</option><option>Completed</option><option>On Hold</option><option>Postponed</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Sprint</label>
+                <select id="newTaskSprint">
+                    <option>Sprint 1</option><option>Sprint 2</option><option>Sprint 3</option><option>Sprint 4</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Assigned Date</label>
+                <input type="date" id="newTaskAssigned">
+            </div>
+            <div class="form-group">
+                <label>Due Date</label>
+                <input type="date" id="newTaskDue">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeAddTask()">Cancel</button>
+                <button class="btn-save" onclick="saveTask()">Save Task</button>
             </div>
         </div>
     </div>
@@ -396,6 +458,30 @@
         }).join('');
     }
     renderTimeline();
+
+    // Add Task Modal functions
+    function openAddTask() {
+        document.getElementById('addTaskModal').classList.add('active');
+    }
+    function closeAddTask() {
+        document.getElementById('addTaskModal').classList.remove('active');
+        document.getElementById('newTaskName').value = '';
+        document.getElementById('newTaskResponsible').value = '';
+        document.getElementById('newTaskAssigned').value = '';
+        document.getElementById('newTaskDue').value = '';
+    }
+    function saveTask() {
+        const name = document.getElementById('newTaskName').value.trim();
+        const responsible = document.getElementById('newTaskResponsible').value;
+        const status = document.getElementById('newTaskStatus').value;
+        const sprint = document.getElementById('newTaskSprint').value;
+        const assigned = document.getElementById('newTaskAssigned').value || 'nan';
+        const due = document.getElementById('newTaskDue').value || 'nan';
+        if (!name || !responsible) { alert('Please fill in Task Name and Responsible'); return; }
+        tasks.push({ task: name, responsible, status, sprint, assigned, due });
+        renderTasks(document.getElementById('taskSearch').value);
+        closeAddTask();
+    }
     </script>
 </body>
 </html>
