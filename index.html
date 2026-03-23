@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Dashboard - Task Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #eef1f5; color: #333; }
+        
+        /* Header */
+        .header { background: #2c3e6b; color: #fff; padding: 16px 24px; text-align: center; }
+        .header h1 { font-size: 18px; font-weight: 600; }
+        .header .subtitle { font-size: 12px; color: #a0aec0; margin-top: 2px; }
+        .header .icon { display: inline-block; width: 20px; height: 20px; background: #4a6cf7; border-radius: 4px; vertical-align: middle; margin-right: 8px; }
+
+        /* Tabs */
+        .tabs { background: #34495e; display: flex; padding: 0 16px; gap: 0; }
+        .tab { padding: 10px 18px; color: #cbd5e0; cursor: pointer; font-size: 13px; border: none; background: none; transition: all 0.2s; }
+        .tab:hover { color: #fff; }
+        .tab.active { background: #4a6cf7; color: #fff; border-radius: 4px 4px 0 0; }
+        .tab .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+        .tab .dot.blue { background: #4a6cf7; }
+        .tab .dot.green { background: #48bb78; }
+        .tab .dot.purple { background: #805ad5; }
+        .tab .dot.orange { background: #ed8936; }
+        .tab .dot.red { background: #e53e3e; }
+
+        /* Filters */
+        .filters { background: #fff; margin: 16px 24px; padding: 16px 20px; border-radius: 8px; display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .filter-group label { font-size: 11px; color: #4a6cf7; font-weight: 600; }
+        .filter-group select, .filter-group input { padding: 6px 10px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 13px; min-width: 100px; }
+        .btn { padding: 7px 16px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; font-weight: 500; }
+        .btn-apply { background: #4a6cf7; color: #fff; }
+        .btn-reset { background: #a0aec0; color: #fff; }
+        .btn-export { background: #e53e3e; color: #fff; }
+
+        /* Content */
+        .content { padding: 0 24px 24px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* KPI Cards */
+        .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }
+        .kpi-card { background: #fff; padding: 16px 20px; border-radius: 8px; border-left: 4px solid #48bb78; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .kpi-card .value { font-size: 28px; font-weight: 700; color: #2d3748; }
+        .kpi-card .label { font-size: 12px; color: #718096; margin-top: 2px; }
+        .kpi-card:nth-child(2) { border-left-color: #4a6cf7; }
+        .kpi-card:nth-child(3) { border-left-color: #ed8936; }
+        .kpi-card:nth-child(4) { border-left-color: #e53e3e; }
+        .kpi-card:nth-child(5) { border-left-color: #805ad5; }
+        .kpi-card:nth-child(6) { border-left-color: #e53e3e; }
+        .kpi-card .warning { color: #e53e3e; font-size: 11px; }
+
+        /* Chart Grid */
+        .chart-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .chart-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .chart-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #2d3748; }
+        .chart-card canvas { width: 100% !important; max-height: 250px; }
+        .chart-full { grid-column: 1 / -1; }
+        .chart-half { grid-column: span 1; }
+
+        /* Table */
+        .table-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
+        .search-bar { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
+        .search-bar input { width: 300px; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: #2c3e6b; color: #fff; }
+        th { padding: 10px 16px; text-align: left; font-size: 12px; font-weight: 600; }
+        td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+        tr:hover { background: #f7fafc; }
+        .badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; color: #fff; display: inline-block; }
+        .badge-progress { background: #4a6cf7; }
+        .badge-completed { background: #48bb78; }
+        .badge-hold { background: #ed8936; }
+        .badge-postponed { background: #a0aec0; }
+        .btn-view { background: #4a6cf7; color: #fff; padding: 4px 12px; border-radius: 4px; font-size: 11px; border: none; cursor: pointer; }
+
+        /* Team View */
+        .team-table .indicator { display: inline-block; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 11px; color: #fff; font-weight: 700; }
+        .indicator-green { background: #48bb78; }
+        .indicator-orange { background: #ed8936; }
+        .indicator-red { background: #e53e3e; }
+        .indicator-gray { background: #cbd5e0; }
+        .progress-bar { width: 120px; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; display: inline-block; }
+        .progress-fill { height: 100%; background: #48bb78; border-radius: 4px; }
+
+        /* Timeline */
+        .timeline-section { margin-bottom: 20px; }
+        .timeline-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .timeline-header h3 { font-size: 15px; font-weight: 600; }
+        .btn-viewall { background: #4a6cf7; color: #fff; padding: 5px 14px; border-radius: 4px; font-size: 12px; border: none; cursor: pointer; }
+        .timeline-cards { display: flex; gap: 12px; flex-wrap: wrap; }
+        .timeline-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; width: 180px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .timeline-card .title { font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #2d3748; }
+        .timeline-card .assignee { font-size: 11px; color: #718096; margin-bottom: 6px; }
+        .timeline-card .more { font-size: 12px; color: #718096; display: flex; align-items: center; justify-content: center; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; width: 100px; }
+
+        /* Risk */
+        .risk-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .risk-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .risk-card .value { font-size: 32px; font-weight: 700; }
+        .risk-card .label { font-size: 12px; color: #718096; margin-top: 4px; }
+        .risk-card:nth-child(1) { border-left: 4px solid #e53e3e; }
+        .risk-card:nth-child(2) { border-left: 4px solid #4a6cf7; }
+        .risk-card:nth-child(3) { border-left: 4px solid #ed8936; }
+        .risk-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+        .risk-title .icon { color: #ed8936; }
+
+        /* Monthly Trend full width */
+        .chart-trend { grid-column: 1 / 2; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1><span class="icon"></span>Manager Dashboard - Task Tracker</h1>
+        <div class="subtitle" id="generated-date"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab active" data-tab="overview"><span class="dot blue"></span>Overview</button>
+        <button class="tab" data-tab="alltasks"><span class="dot blue"></span>All Tasks</button>
+        <button class="tab" data-tab="teamview"><span class="dot green"></span>Team View</button>
+        <button class="tab" data-tab="timeline"><span class="dot purple"></span>Timeline</button>
+        <button class="tab" data-tab="risks"><span class="dot red"></span>Risks</button>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters">
+        <div class="filter-group"><label>Month</label><select><option>All</option></select></div>
+        <div class="filter-group"><label>Team</label><select><option>All</option></select></div>
+        <div class="filter-group"><label>Status</label><select><option>All</option><option>In Progress</option><option>Completed</option><option>On Hold</option><option>Postponed</option></select></div>
+        <div class="filter-group"><label>Sprint</label><select><option>All</option><option>Sprint 1</option><option>Sprint 2</option><option>Sprint 3</option><option>Sprint 4</option></select></div>
+        <div class="filter-group"><label>From</label><input type="date"></div>
+        <div class="filter-group"><label>To</label><input type="date"></div>
+        <button class="btn btn-apply">Apply</button>
+        <button class="btn btn-reset">Reset</button>
+        <button class="btn btn-export">📥 Export</button>
+    </div>
+
+    <div class="content">
+        <!-- OVERVIEW TAB -->
+        <div class="tab-content active" id="overview">
+            <div class="kpi-row">
+                <div class="kpi-card"><div class="value">56</div><div class="label">Total Tasks</div></div>
+                <div class="kpi-card"><div class="value">18</div><div class="label">Completed</div></div>
+                <div class="kpi-card"><div class="value">30</div><div class="label">In Progress</div></div>
+                <div class="kpi-card"><div class="value">6</div><div class="label">On Hold</div></div>
+                <div class="kpi-card"><div class="value">32.1%</div><div class="label">Completion Rate</div></div>
+                <div class="kpi-card"><div class="value">0</div><div class="label"><span class="warning">⚠ Overdue</span></div></div>
+            </div>
+            <div class="chart-row">
+                <div class="chart-card"><h3>Status Distribution</h3><canvas id="statusChart"></canvas></div>
+                <div class="chart-card"><h3>Team Workload</h3><canvas id="workloadChart"></canvas></div>
+                <div class="chart-card"><h3>Sprint Progress</h3><canvas id="sprintChart"></canvas></div>
+            </div>
+            <div class="chart-row">
+                <div class="chart-card chart-trend"><h3>Monthly Trend</h3><canvas id="trendChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- ALL TASKS TAB -->
+        <div class="tab-content" id="alltasks">
+            <div class="table-card">
+                <div class="search-bar"><input type="text" placeholder="🔍 Search tasks..." id="taskSearch"></div>
+                <table>
+                    <thead>
+                        <tr><th>Task</th><th>Responsible</th><th>Status</th><th>Sprint</th><th>Assigned</th><th>Due</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="taskTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TEAM VIEW TAB -->
+        <div class="tab-content" id="teamview">
+            <div class="table-card">
+                <div style="padding:20px"><h3 style="font-size:16px;font-weight:600">Team Performance</h3></div>
+                <table class="team-table">
+                    <thead>
+                        <tr><th>Team Member</th><th>Total</th><th>Completed</th><th>In Progress</th><th>On Hold</th><th>Rate</th><th>Progress</th></tr>
+                    </thead>
+                    <tbody id="teamTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TIMELINE TAB -->
+        <div class="tab-content" id="timeline">
+            <div class="table-card" style="padding:20px">
+                <h3 style="font-size:16px;font-weight:600;margin-bottom:20px">Task Timeline</h3>
+                <div id="timelineContent"></div>
+            </div>
+        </div>
+
+        <!-- RISKS TAB -->
+        <div class="tab-content" id="risks">
+            <div class="table-card" style="padding:20px">
+                <div class="risk-title">⚠ Risk Dashboard</div>
+                <div class="risk-row">
+                    <div class="risk-card"><div class="value">0</div><div class="label">⚠ Overdue</div></div>
+                    <div class="risk-card"><div class="value">0</div><div class="label">📅 Due This Week</div></div>
+                    <div class="risk-card"><div class="value">6</div><div class="label">🚫 Blocked</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Data
+    const tasks = [
+        { task: "Check the USA data definitions", responsible: "Venkat", status: "On Hold", sprint: "Sprint 1", assigned: "1/8/2025", due: "nan" },
+        { task: "Item level report", responsible: "Narayana", status: "In Progress", sprint: "Sprint 2", assigned: "12/1/2026", due: "nan" },
+        { task: "Browser Usage Report", responsible: "Narayana", status: "In Progress", sprint: "Sprint 3", assigned: "30/01/2026", due: "nan" },
+        { task: "project Herschel DLR report", responsible: "Narayana", status: "Completed", sprint: "Sprint 3", assigned: "1/2/2026", due: "nan" },
+        { task: "Gaming data", responsible: "Narayana", status: "In Progress", sprint: "Sprint 3", assigned: "1/2/2026", due: "nan" },
+        { task: "Sigma incident updates", responsible: "Narayana, Meghana", status: "In Progress", sprint: "Sprint 1", assigned: "14/10/2025", due: "nan" },
+        { task: "INC2179560 FTD and deposit API big decline after s...", responsible: "Naveen", status: "In Progress", sprint: "Sprint 1", assigned: "15/07/2025", due: "nan" },
+        { task: "INC2058065", responsible: "Naveen", status: "On Hold", sprint: "Sprint 1", assigned: "nan", due: "nan" },
+        { task: "F16-INC2201114", responsible: "Naveen", status: "In Progress", sprint: "Sprint 1", assigned: "1/2/8/2025", due: "nan" },
+        { task: "Css alignment in all the labels", responsible: "Naveen", status: "Completed", sprint: "Sprint 1", assigned: "19/09/2025", due: "nan" },
+        { task: "Remove GTM referral exclusion list", responsible: "Naveen", status: "In Progress", sprint: "Sprint 3", assigned: "22/01/2026", due: "nan" },
+        { task: "New change is happening in the cookie banner - Nee...", responsible: "Naveen", status: "On Hold", sprint: "Sprint 3", assigned: "27/01/2026", due: "nan" },
+        { task: "INC2332082", responsible: "Naveen", status: "In Progress", sprint: "Sprint 4", assigned: "6/2/2026", due: "nan" },
+        { task: "GCLD fix", responsible: "Naveen", status: "On Hold", sprint: "Sprint 4", assigned: "20/02/2026", due: "nan" },
+        { task: "Montecarlo Alerts And Big Function Alerts", responsible: "Naveen, Meghana", status: "In Progress", sprint: "Sprint 1", assigned: "6/8/2025", due: "nan" },
+        { task: "India Workshop PPT creation", responsible: "Prateek", status: "Completed", sprint: "Sprint 1", assigned: "9/2/2026", due: "nan" },
+        { task: "Snowplow Implementation Planner", responsible: "Vignesh", status: "Completed", sprint: "Sprint 2", assigned: "9/2/2026", due: "nan" },
+        { task: "GIT Lab Repository", responsible: "Vignesh", status: "In Progress", sprint: "Sprint 2", assigned: "9/2/2026", due: "nan" },
+        { task: "Project Herschel Dependency analysis overview", responsible: "Narayana", status: "In Progress", sprint: "Sprint 3", assigned: "9/3/2026", due: "nan" },
+        { task: "bestbip lib discordancy analysis overview", responsible: "Narayana", status: "Completed", sprint: "Sprint 3", assigned: "9/3/2026", due: "nan" },
+        { task: "Registration success and API data for per...", responsible: "Narayana", status: "Completed", sprint: "Sprint 3", assigned: "9/3/2026", due: "nan" },
+        { task: "duplicate users journey", responsible: "Meghana", status: "Completed", sprint: "Sprint 3", assigned: "9/3/2026", due: "nan" },
+        { task: "DLR report", responsible: "Meghana", status: "Completed", sprint: "Sprint 2", assigned: "6/3/2026", due: "nan" },
+        { task: "DLR dashboard", responsible: "Meghana", status: "Completed", sprint: "Sprint 2", assigned: "6/3/2026", due: "nan" },
+        { task: "KT of Power BI report poc", responsible: "Narayana", status: "Completed", sprint: "Sprint 2", assigned: "6/3/2026", due: "nan" },
+        { task: "Power BI tags status update 1", responsible: "Narayana", status: "In Progress", sprint: "Sprint 2", assigned: "6/3/2026", due: "nan" },
+        { task: "Power BI tags status update 2", responsible: "Narayana", status: "Completed", sprint: "Sprint 2", assigned: "6/3/2026", due: "nan" },
+        { task: "Alternative solutions to Server-side tag", responsible: "Prateek", status: "Completed", sprint: "Sprint 2", assigned: "6/3/2026", due: "nan" },
+    ];
+
+    const teamData = [
+        { name: "Narayana", total: 10, completed: 6, inProgress: 4, onHold: 0, rate: 60.0 },
+        { name: "Naveen", total: 10, completed: 1, inProgress: 5, onHold: 4, rate: 10.0 },
+        { name: "Prateek", total: 10, completed: 4, inProgress: 0, onHold: 0, rate: 40.0 },
+        { name: "Meghana", total: 10, completed: 6, inProgress: 0, onHold: 0, rate: 60.0 },
+        { name: "Vignesh", total: 6, completed: 1, inProgress: 1, onHold: 0, rate: 16.7 },
+        { name: "Venkat", total: 3, completed: 0, inProgress: 0, onHold: 1, rate: 0.0 },
+        { name: "Sahil", total: 2, completed: 0, inProgress: 0, onHold: 0, rate: 0.0 },
+        { name: "Narayana, Meghana", total: 1, completed: 0, inProgress: 1, onHold: 0, rate: 0.0 },
+        { name: "Naveen, Meghana", total: 1, completed: 0, inProgress: 1, onHold: 0, rate: 0.0 },
+        { name: "Prateek, Sahil", total: 1, completed: 0, inProgress: 0, onHold: 0, rate: 0.0 },
+        { name: "Sahil, Prateek, Venkat", total: 1, completed: 0, inProgress: 0, onHold: 0, rate: 0.0 },
+        { name: "Meghana, Narayana", total: 1, completed: 0, inProgress: 0, onHold: 0, rate: 0.0 },
+    ];
+
+    const timelineData = [
+        { date: "9/3/202", count: 4, tasks: [
+            { title: "Project Herschel Dependency...", assignee: "Narayana", status: "In Progress" },
+            { title: "bestbip lib discordancy analysis overview...", assignee: "Narayana", status: "Completed" },
+            { title: "Registration success and API data for per...", assignee: "Narayana", status: "Completed" },
+            { title: "duplicate users journey...", assignee: "Meghana", status: "Completed" },
+        ]},
+        { date: "9/2/202", count: 3, tasks: [
+            { title: "India Workshop PPT creation...", assignee: "Prateek", status: "Completed" },
+            { title: "Snowplow Implementation Planner...", assignee: "Vignesh", status: "Completed" },
+            { title: "GIT Lab Repository...", assignee: "Vignesh", status: "In Progress" },
+        ]},
+        { date: "6/8/202", count: 1, tasks: [
+            { title: "Montecarlo Alerts And Big Function Alert...", assignee: "Naveen, Meghana", status: "In Progress" },
+        ]},
+        { date: "6/3/202", count: 7, tasks: [
+            { title: "DLR...", assignee: "Meghana", status: "Completed" },
+            { title: "DLR...", assignee: "Meghana", status: "Completed" },
+            { title: "KT of Power BI report poc.", assignee: "Narayana", status: "In Progress" },
+            { title: "Power BI tags status update...", assignee: "Narayana", status: "In Progress" },
+            { title: "Power BI tags status update...", assignee: "Narayana", status: "Completed" },
+            { title: "Alternative solutions to Server-side tag...", assignee: "Narayana", status: "Completed" },
+        ]},
+    ];
+
+    // Generated date
+    const now = new Date();
+    document.getElementById('generated-date').textContent = 'Generated: ' + now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) + ' ' + now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+    });
+
+    // Status Distribution - Doughnut
+    new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['On Hold', 'In Progress', 'Completed', 'Postponed'],
+            datasets: [{ data: [6, 30, 18, 2], backgroundColor: ['#48bb78', '#ed8936', '#e53e3e', '#a0aec0'], borderWidth: 2 }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } } } }
+    });
+
+    // Team Workload - Bar
+    new Chart(document.getElementById('workloadChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Narayana', 'Naveen', 'Prateek', 'Meghana', 'Vignesh', 'Venkat', 'Sahil'],
+            datasets: [{ label: 'Tasks', data: [10, 10, 10, 10, 6, 3, 2], backgroundColor: '#4a6cf7' }]
+        },
+        options: { responsive: true, plugins: { legend: { display: true, position: 'top', labels: { font: { size: 11 } } } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 2 } } } }
+    });
+
+    // Sprint Progress - Stacked Bar
+    new Chart(document.getElementById('sprintChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Sprint 1', 'Sprint 2', 'Sprint 3', 'Sprint 4', 'Sprint 5', 'Sprint 6', 'Sprint 7'],
+            datasets: [
+                { label: 'Completed', data: [2, 6, 4, 0, 2, 2, 1], backgroundColor: '#48bb78' },
+                { label: 'In Progress', data: [5, 3, 4, 2, 3, 5, 2], backgroundColor: '#ed8936' },
+                { label: 'On Hold', data: [2, 0, 1, 2, 0, 1, 0], backgroundColor: '#e53e3e' },
+            ]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'top', labels: { usePointStyle: true, font: { size: 11 } } } }, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+    });
+
+    // Monthly Trend - Line
+    new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
+            datasets: [
+                { label: 'Completed', data: [2, 3, 7, 4, 3, 2, 3, 4, 5], borderColor: '#48bb78', backgroundColor: 'rgba(72,187,120,0.1)', fill: true, tension: 0.3 },
+                { label: 'In Progress', data: [4, 5, 3, 5, 6, 4, 5, 3, 4], borderColor: '#ed8936', backgroundColor: 'rgba(237,137,54,0.1)', fill: true, tension: 0.3 },
+            ]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'top', labels: { usePointStyle: true, font: { size: 11 } } } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+
+    // Render All Tasks table
+    function renderTasks(filter = '') {
+        const tbody = document.getElementById('taskTableBody');
+        const filtered = tasks.filter(t => t.task.toLowerCase().includes(filter.toLowerCase()));
+        tbody.innerHTML = filtered.map(t => {
+            const badgeClass = t.status === 'Completed' ? 'badge-completed' : t.status === 'In Progress' ? 'badge-progress' : t.status === 'On Hold' ? 'badge-hold' : 'badge-postponed';
+            return `<tr>
+                <td>${t.task}</td><td>${t.responsible}</td>
+                <td><span class="badge ${badgeClass}">${t.status}</span></td>
+                <td>${t.sprint}</td><td>${t.assigned}</td><td>${t.due}</td>
+                <td><button class="btn-view">View</button></td>
+            </tr>`;
+        }).join('');
+    }
+    renderTasks();
+    document.getElementById('taskSearch').addEventListener('input', e => renderTasks(e.target.value));
+
+    // Render Team table
+    function renderTeam() {
+        const tbody = document.getElementById('teamTableBody');
+        tbody.innerHTML = teamData.map(m => {
+            const cColor = m.completed > 0 ? 'indicator-green' : 'indicator-gray';
+            const pColor = m.inProgress > 0 ? 'indicator-orange' : 'indicator-gray';
+            const hColor = m.onHold > 0 ? 'indicator-red' : 'indicator-gray';
+            return `<tr>
+                <td>${m.name}</td><td>${m.total}</td>
+                <td><span class="indicator ${cColor}">${m.completed}</span></td>
+                <td><span class="indicator ${pColor}">${m.inProgress}</span></td>
+                <td><span class="indicator ${hColor}">${m.onHold}</span></td>
+                <td>${m.rate}%</td>
+                <td><div class="progress-bar"><div class="progress-fill" style="width:${m.rate}%"></div></div></td>
+            </tr>`;
+        }).join('');
+    }
+    renderTeam();
+
+    // Render Timeline
+    function renderTimeline() {
+        const container = document.getElementById('timelineContent');
+        container.innerHTML = timelineData.map(group => {
+            const cards = group.tasks.slice(0, 5).map(t => {
+                const badgeClass = t.status === 'Completed' ? 'badge-completed' : 'badge-progress';
+                return `<div class="timeline-card"><div class="title">${t.title}</div><div class="assignee">${t.assignee}</div><span class="badge ${badgeClass}">${t.status}</span></div>`;
+            }).join('');
+            const more = group.count > 5 ? `<div class="timeline-card more">+ ${group.count - 5} more</div>` : '';
+            return `<div class="timeline-section">
+                <div class="timeline-header"><h3>${group.date} (${group.count} tasks)</h3><button class="btn-viewall">View All</button></div>
+                <div class="timeline-cards">${cards}${more}</div>
+            </div>`;
+        }).join('');
+    }
+    renderTimeline();
+    </script>
+</body>
+</html>
