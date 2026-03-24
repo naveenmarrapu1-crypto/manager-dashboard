@@ -127,6 +127,12 @@
         .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
         .btn-cancel { background: #e2e8f0; color: #4a5568; padding: 8px 18px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
         .btn-save { background: #4a6cf7; color: #fff; padding: 8px 18px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+        .btn-edit { background: #ed8936; color: #fff; padding: 8px 18px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+        .btn-delete { background: #e53e3e; color: #fff; padding: 8px 18px; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+        .modal { max-height: 90vh; overflow-y: auto; }
+        .view-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+        .view-label { font-size: 12px; font-weight: 600; color: #718096; }
+        .view-value { font-size: 13px; color: #2d3748; text-align: right; max-width: 60%; }
     </style>
 </head>
 <body>
@@ -280,6 +286,70 @@
         </div>
     </div>
 
+    <!-- View Task Modal -->
+    <div class="modal-overlay" id="viewTaskModal">
+        <div class="modal">
+            <h2 id="viewTaskTitle">Task Details</h2>
+            <div id="viewTaskBody"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeViewTask()">Close</button>
+                <button class="btn-edit" onclick="editTask()">✏️ Edit</button>
+                <button class="btn-delete" onclick="deleteTask()">🗑️ Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div class="modal-overlay" id="editTaskModal">
+        <div class="modal">
+            <h2>Edit Task</h2>
+            <div class="form-group">
+                <label>Task Name</label>
+                <input type="text" id="editTaskName">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="editTaskDesc" rows="3" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:4px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Responsible</label>
+                <select id="editTaskResponsible">
+                    <option value="">Select team member</option>
+                    <option>Narayana</option><option>Naveen</option><option>Prateek</option>
+                    <option>Meghana</option><option>Vignesh</option><option>Venkat</option><option>Sahil</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select id="editTaskStatus">
+                    <option>In Progress</option><option>Completed</option><option>On Hold</option><option>Postponed</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Sprint</label>
+                <select id="editTaskSprint">
+                    <option>Sprint 1</option><option>Sprint 2</option><option>Sprint 3</option><option>Sprint 4</option><option>Sprint 5</option><option>Sprint 6</option><option>Sprint 7</option><option>Sprint 8</option><option>Sprint 9</option><option>Sprint 10</option><option>Sprint 11</option><option>Sprint 12</option><option>Sprint 13</option><option>Sprint 14</option><option>Sprint 15</option><option>Sprint 16</option><option>Sprint 17</option><option>Sprint 18</option><option>Sprint 19</option><option>Sprint 20</option><option>Sprint 21</option><option>Sprint 22</option><option>Sprint 23</option><option>Sprint 24</option><option>Sprint 25</option><option>Sprint 26</option><option>Sprint 27</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Assigned Date</label>
+                <input type="date" id="editTaskAssigned">
+            </div>
+            <div class="form-group">
+                <label>Due Date</label>
+                <input type="date" id="editTaskDue">
+            </div>
+            <div class="form-group">
+                <label>Comment</label>
+                <textarea id="editTaskComment" rows="3" style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:4px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeEditTask()">Cancel</button>
+                <button class="btn-save" onclick="saveEditTask()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <script>
     // Data
     const tasks = [
@@ -417,14 +487,14 @@
     // Render All Tasks table
     function renderTasks(filter = '') {
         const tbody = document.getElementById('taskTableBody');
-        const filtered = tasks.filter(t => t.task.toLowerCase().includes(filter.toLowerCase()));
+        const filtered = tasks.map((t, i) => ({...t, _idx: i})).filter(t => t.task.toLowerCase().includes(filter.toLowerCase()));
         tbody.innerHTML = filtered.map(t => {
             const badgeClass = t.status === 'Completed' ? 'badge-completed' : t.status === 'In Progress' ? 'badge-progress' : t.status === 'On Hold' ? 'badge-hold' : 'badge-postponed';
             return `<tr>
                 <td>${t.task}</td><td>${t.responsible}</td>
                 <td><span class="badge ${badgeClass}">${t.status}</span></td>
                 <td>${t.sprint}</td><td>${t.assigned}</td><td>${t.due}</td>
-                <td><button class="btn-view">View</button></td>
+                <td><button class="btn-view" onclick="viewTask(${t._idx})">View</button></td>
             </tr>`;
         }).join('');
     }
@@ -493,6 +563,68 @@
         tasks.push({ task: name, description: desc, responsible, status, sprint, assigned, due, comment });
         renderTasks(document.getElementById('taskSearch').value);
         closeAddTask();
+    }
+
+    // View Task
+    let currentViewIdx = -1;
+    function viewTask(idx) {
+        currentViewIdx = idx;
+        const t = tasks[idx];
+        const badgeClass = t.status === 'Completed' ? 'badge-completed' : t.status === 'In Progress' ? 'badge-progress' : t.status === 'On Hold' ? 'badge-hold' : 'badge-postponed';
+        document.getElementById('viewTaskTitle').textContent = t.task;
+        document.getElementById('viewTaskBody').innerHTML = `
+            <div class="view-row"><span class="view-label">Description</span><span class="view-value">${t.description || '-'}</span></div>
+            <div class="view-row"><span class="view-label">Responsible</span><span class="view-value">${t.responsible}</span></div>
+            <div class="view-row"><span class="view-label">Status</span><span class="view-value"><span class="badge ${badgeClass}">${t.status}</span></span></div>
+            <div class="view-row"><span class="view-label">Sprint</span><span class="view-value">${t.sprint}</span></div>
+            <div class="view-row"><span class="view-label">Assigned</span><span class="view-value">${t.assigned}</span></div>
+            <div class="view-row"><span class="view-label">Due</span><span class="view-value">${t.due}</span></div>
+            <div class="view-row"><span class="view-label">Comment</span><span class="view-value">${t.comment || '-'}</span></div>
+        `;
+        document.getElementById('viewTaskModal').classList.add('active');
+    }
+    function closeViewTask() {
+        document.getElementById('viewTaskModal').classList.remove('active');
+    }
+
+    // Edit Task
+    function editTask() {
+        closeViewTask();
+        const t = tasks[currentViewIdx];
+        document.getElementById('editTaskName').value = t.task;
+        document.getElementById('editTaskDesc').value = t.description || '';
+        document.getElementById('editTaskResponsible').value = t.responsible;
+        document.getElementById('editTaskStatus').value = t.status;
+        document.getElementById('editTaskSprint').value = t.sprint;
+        document.getElementById('editTaskAssigned').value = t.assigned === 'nan' ? '' : t.assigned;
+        document.getElementById('editTaskDue').value = t.due === 'nan' ? '' : t.due;
+        document.getElementById('editTaskComment').value = t.comment || '';
+        document.getElementById('editTaskModal').classList.add('active');
+    }
+    function closeEditTask() {
+        document.getElementById('editTaskModal').classList.remove('active');
+    }
+    function saveEditTask() {
+        const t = tasks[currentViewIdx];
+        t.task = document.getElementById('editTaskName').value.trim();
+        t.description = document.getElementById('editTaskDesc').value.trim();
+        t.responsible = document.getElementById('editTaskResponsible').value;
+        t.status = document.getElementById('editTaskStatus').value;
+        t.sprint = document.getElementById('editTaskSprint').value;
+        t.assigned = document.getElementById('editTaskAssigned').value || 'nan';
+        t.due = document.getElementById('editTaskDue').value || 'nan';
+        t.comment = document.getElementById('editTaskComment').value.trim();
+        renderTasks(document.getElementById('taskSearch').value);
+        closeEditTask();
+    }
+
+    // Delete Task
+    function deleteTask() {
+        if (confirm('Are you sure you want to delete this task?')) {
+            tasks.splice(currentViewIdx, 1);
+            renderTasks(document.getElementById('taskSearch').value);
+            closeViewTask();
+        }
     }
     </script>
 </body>
